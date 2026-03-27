@@ -17,6 +17,7 @@ const loadMoreBtn = document.querySelector('.load-more');
 let query = '';
 let page = 1;
 let totalHits = 0;
+const perPage = 15;
 
 form.addEventListener('submit', async event => {
   event.preventDefault();
@@ -26,7 +27,7 @@ form.addEventListener('submit', async event => {
 
   page = 1;
   clearGallery();
-  hideLoadMoreButton();
+  hideLoadMoreButton(); // Ховаємо кнопку при новому пошуку
   showLoader();
 
   try {
@@ -34,15 +35,22 @@ form.addEventListener('submit', async event => {
 
     if (data.hits.length === 0) {
       iziToast.error({
-        message:
-          'Sorry, there are no images matching your search query. Please try again!',
+        message: 'Sorry, there are no images matching your search query. Please try again!',
       });
       return;
     }
 
     totalHits = data.totalHits;
     createGallery(data.hits);
-    showLoadMoreButton();
+
+    // ПЕРЕВІРКА: Показуємо кнопку лише якщо є ще результати
+    if (totalHits > perPage) {
+      showLoadMoreButton();
+    } else {
+      iziToast.info({
+        message: "We're sorry, but you've reached the end of search results.",
+      });
+    }
   } catch {
     iziToast.error({ message: 'Something went wrong!' });
   } finally {
@@ -53,26 +61,31 @@ form.addEventListener('submit', async event => {
 
 loadMoreBtn.addEventListener('click', async () => {
   page += 1;
+  hideLoadMoreButton(); // ПУНКТ 2 ФІДБЕКУ: Ховаємо кнопку під час завантаження
   showLoader();
 
   try {
     const data = await getImagesByQuery(query, page);
     createGallery(data.hits);
 
-    if (page * 15 >= totalHits) {
+    // Перевірка, чи це остання сторінка
+    const totalPages = Math.ceil(totalHits / perPage);
+    
+    if (page >= totalPages) {
       hideLoadMoreButton();
       iziToast.info({
         message: "We're sorry, but you've reached the end of search results.",
       });
+    } else {
+      showLoadMoreButton(); // Знову показуємо, якщо дані ще є
     }
 
+    // Плавна прокрутка
     const card = document.querySelector('.gallery-item');
-    const { height } = card.getBoundingClientRect();
-
-    window.scrollBy({
-      top: height * 2,
-      behavior: 'smooth',
-    });
+    if (card) {
+      const { height } = card.getBoundingClientRect();
+      window.scrollBy({ top: height * 2, behavior: 'smooth' });
+    }
   } catch {
     iziToast.error({ message: 'Something went wrong!' });
   } finally {
